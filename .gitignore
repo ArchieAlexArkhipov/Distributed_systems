@@ -1,3 +1,6 @@
+#Private files
+local_manual.txt
+
 # Prerequisites
 *.d
 
