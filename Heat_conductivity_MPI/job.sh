@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#PBS -l walltime=00:01:00,nodes=1:ppn=3
+#PBS -l walltime=00:01:00,nodes=7:ppn=4
 #PBS -N 2Archies10100
 #PBS -q batch
 
