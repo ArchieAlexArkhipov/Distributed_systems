@@ -1,16 +1,16 @@
-//gcc -fopenmp heat_OPENMP.c && ./mp.out 0.1 100 4 
+//gcc -fopenmp heat_OPENMP_for.c && ./a.out 0.1 100 4 
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
 #include <time.h> 
 
 #define shaftLength 1.0
-#define leftSideTemperature 1.0
-#define rightSideTemperature 2.0
+#define leftSideTemperature 10.0
+#define rightSideTemperature 10.0
 
 int main(int argc, char **argv) 
 {
-	clock_t begin = clock();
+	double start_time = omp_get_wtime();
 	if (argc != 4) 
 	{
 		printf("Usage: %s timeOfExperimentInSeconds countOfShaftLenghtsPiecesInMeters countOfThreads\n", argv[0]);
@@ -45,20 +45,29 @@ int main(int argc, char **argv)
 
 	omp_set_num_threads(countOfThreads);
 	/* Интегрируем по времени. */
-	for (_ = 0; _ < countOfTimePieces; _++) 
+	#pragma omp parallel
 	{
-
-		#pragma omp parallel for
-			for (j = 1; j < countOfShaftLenghtsPieces; j++) 
-        	{ 	
-            	u1[j] = u0[j] + timeStride / lenghtStride / lenghtStride  * (u0[j-1] - 2.0 * u0[j] + u0[j+1]);
-        	}
-        
-		uExchange = u0;
-        u0 = u1 ;
-        u1 = uExchange;
+		for (_ = 0; _ < countOfTimePieces; _++) 
+		{
+			#pragma omp single
+            {
+                u1[0] = leftSideTemperature;
+                u1[countOfShaftLenghtsPieces] = rightSideTemperature;
+            }
+			#pragma omp for
+				for (j = 1; j < countOfShaftLenghtsPieces; j++) 
+				{ 	
+					u1[j] = u0[j] + timeStride / lenghtStride / lenghtStride  * (u0[j-1] - 2.0 * u0[j] + u0[j+1]);
+				}
+			#pragma omp single
+			{
+				uExchange = u0;
+				u0 = u1 ;
+				u1 = uExchange;
+			}
+			
+		}
 	}
-	
 	/* Вывод на экран. 
 	for (j = 0; j < countOfShaftLenghtsPieces; j++) 
     {
@@ -67,9 +76,10 @@ int main(int argc, char **argv)
 
 	free(u0);
 	free(u1);
-	clock_t end = clock();
-	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("%lf \n", time_spent);
+		
+
+    double end_time = omp_get_wtime();
+	printf("time: %lf \n", end_time - start_time);
 	
 	return 0;
 }

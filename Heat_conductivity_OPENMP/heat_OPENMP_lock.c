@@ -1,4 +1,4 @@
-//gcc -fopenmp heat_OPENMP.c && ./mp.out 0.1 100 4 
+//gcc -fopenmp heat_OPENMP_lock.c && ./a.out 0.001 300000000 2 
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
@@ -42,40 +42,30 @@ int main(int argc, char **argv)
 	u0[0] = u1[0] = leftSideTemperature;
 	u0[countOfShaftLenghtsPieces] = u1[countOfShaftLenghtsPieces] = rightSideTemperature;
 
-
+    /*omp_lock_t *locks;
+    if (countOfThreads > 1)
+    {
+        int countLock = 0;
+        int countOfLocks = 4;//(countOfThreads > 2) ? ((countOfThreads - 2) * 2 + 2) : (countOfThreads);
+        locks = (omp_lock_t*)malloc(sizeof(omp_lock_t) * countOfLocks);
+        for(_ = 0; _ < countOfThreads; _++)
+            omp_init_lock(locks+_);
+        //omp_set_lock(locks);
+    }*/
+    omp_lock_t _if, barrier, count_lock;
+    omp_init_lock(&count_lock);
+    omp_init_lock(&_if);
+    omp_init_lock(&barrier);
+    int count = 1;
+    int __if = 1;
     omp_set_num_threads(countOfThreads);
 
-    
-
-    if (countOfThreads > 1)
-    {
-        int countOfLocks = (countOfThreads > 2) ? ((countOfThreads - 2) * 2 + 2) : (countOfThreads);
-        omp_lock_t *locks;
-        locks = (omp_lock_t*)malloc(sizeof(omp_lock_t) * countOfThreads);
-        for (_ = 0; _ < countOfThreads; _++)
-        {
-            omp_set_lock(locks+_);
-        }
-    }
-
-    omp_lock_t *locks;
-    if (countOfThreads > 1)
-    {
-        int countOfLocks = (countOfThreads > 2) ? ((countOfThreads - 2) * 2 + 2) : (countOfThreads);
-        locks = (omp_lock_t*)malloc(sizeof(omp_lock_t) * countOfLocks);
-        /*omp_set_lock(locks);
-                    for (_ = 1; _ < countOfThreads; _++)
-                    {
-                        omp_set_lock(locks+_);
-                    }   */
-                    printf("2");
-                }
-
     int lenghtOfOneThread = (countOfThreads > 1 ) ? ((countOfShaftLenghtsPieces - 2) / ( countOfThreads - 1 )) : (countOfShaftLenghtsPieces - 2);
-    for (_ = 0; _ < countOfTimePieces; _++) 
-	{
-        #pragma omp parallel
-        {            
+    #pragma omp parallel
+    {     
+        int t;     
+        for (t = 0; t < countOfTimePieces; t++) 
+        {
             int i = 0, j = 0;
             if (omp_get_thread_num() == 0)
             {    
@@ -90,6 +80,7 @@ int main(int argc, char **argv)
                 } 
                 else 
                 {
+                    //1 thread
                     for(j = 1; j < countOfShaftLenghtsPieces; j++)
                     {
                         u1[j] = u0[j] + timeStride / lenghtStride / lenghtStride  * (u0[j-1] - 2.0 * u0[j] + u0[j+1]);
@@ -105,20 +96,63 @@ int main(int argc, char **argv)
                     u1[i] = u0[i] + timeStride / lenghtStride / lenghtStride  * (u0[i-1] - 2.0 * u0[i] + u0[i+1]);
                 }
             }
+
+            /*if (countOfThreads > 1)
+            {
+                
+                countLock++;
+                while(1)
+                {
+                    if (countLock == countOfThreads)
+                    {
+                        
+                        break;
+                    }
+                }*/
+                
+            omp_set_lock(&_if);
+            if(__if) {
+                __if = 0;
+                while(1) {
+                    if (count == 1) {
+                        break;
+                    }
+                }
+                omp_set_lock(&barrier);
+                omp_unset_lock(&_if);
+                while(1) {
+                    if (count == countOfThreads) {
+                        break;
+                    }
+                }
+                __if = 1;
+                uExchange = u0;
+                u0 = u1 ;
+                u1 = uExchange;
+                omp_unset_lock(&barrier);
+            } else {
+                omp_unset_lock(&_if);
+                omp_set_lock(&count_lock);
+                count++;
+                omp_unset_lock(&count_lock);
+                omp_set_lock(&barrier);
+                omp_set_lock(&count_lock);
+                count--;
+                omp_unset_lock(&count_lock);
+                omp_unset_lock(&barrier);
+            }
+                
+                
         }
-
-		uExchange = u0;
-        u0 = u1 ;
-        u1 = uExchange;
-	}
-
+    }
+    
 
 	
-	// Вывод на экран. 
+	/* Вывод на экран. 
 	for (_ = 0; _ < countOfShaftLenghtsPieces; _++) 
     {
 		printf("%lf \n", u1[_]);
-	}
+	}*/
 
 	free(u0);
 	free(u1);
@@ -128,131 +162,6 @@ int main(int argc, char **argv)
 	
 	return 0;
 }
-
-
-/*
-omp_lock_t *locks;
-    if (countOfThreads > 1)
-    {
-        int countOfLocks = (countOfThreads > 2) ? ((countOfThreads - 2) * 2 + 2) : (countOfThreads);
-        locks = (omp_lock_t*)malloc(sizeof(omp_lock_t) * countOfLocks);
-        omp_set_lock(locks);
-        for (_ = 1; _ < countOfThreads; _++)
-        {
-            omp_set_lock(locks+_);
-        }  
-        printf("2");
-    }
-
-switch (countOfThreads)
-            {
-                case 2:
-                {
-                    switch(omp_get_thread_num())
-                    {
-                        case 1:
-                        {
-                            omp_unset_lock(locks);
-                            omp_set_lock(locks + 1);
-                        }
-                        case 2:
-                        {
-                            omp_unset_lock(locks + 1);
-                            omp_set_lock(locks);
-                        }
-                        default:
-                            break;
-                    }
-                }
-                case 3:
-                {
-                    switch(omp_get_thread_num())
-                    {
-                        case 1:
-                        {
-                            omp_unset_lock(locks);
-                            omp_set_lock(locks + 1);
-                        }
-                        case 2:
-                        {
-                            omp_unset_lock(locks + 1);
-                            omp_set_lock(locks);
-
-                            omp_unset_lock(locks + 2);
-                            omp_set_lock(locks + 3);
-                        }
-                        case 3:
-                        {
-                            omp_unset_lock(locks + 3);
-                            omp_set_lock(locks + 2);
-                        }
-                        default:
-                            break;
-                    }
-                }
-                case 4:
-                {
-                    switch(omp_get_thread_num())
-                    {
-                        case 1:
-                        {
-                            omp_unset_lock(locks);
-                            omp_set_lock(locks + 1);
-                        }
-                        case 2:
-                        {
-                            omp_unset_lock(locks + 1);
-                            omp_set_lock(locks);
-
-                            omp_unset_lock(locks + 2);
-                            omp_set_lock(locks + 3);
-                        }
-                        case 3:
-                        {
-                            omp_unset_lock(locks + 3);
-                            omp_set_lock(locks + 2);
-
-                            omp_unset_lock(locks + 4);
-                            omp_set_lock(locks + 5);
-                        }
-                        case 4:
-                        {
-                            omp_unset_lock(locks + 5);
-                            omp_set_lock(locks + 4);
-                        }
-                        default:
-                            break;
-                    }
-                }
-            }
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

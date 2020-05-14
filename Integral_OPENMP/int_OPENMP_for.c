@@ -1,3 +1,4 @@
+//gcc -fopenmp int_OPENMP_for.c -lm && ./a.out 1000000 3 
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,11 +31,14 @@ int main(int argc, char *argv[])
     int i = 0;
     omp_set_num_threads(countOfThreads);
 
-    #pragma omp parallel for reduction(+:sum)
+    #pragma omp parallel
+    {
+        #pragma omp for reduction(+:sum)
         for(i = 1; i < N - 1; i++)
         {
             sum += h * f(h*i);
         }
+    }
     printf("The answer is %lf \n", sum);
     double end_time = omp_get_wtime();
 	printf("time: %lf \n", end_time - start_time);

@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 				beginIterator = (processRank - 1) * mainLenghForOneProcces + 1 + residualLenghForOneProcces;
 				endIterator = beginIterator + mainLenghForOneProcces;
 			}
-
+			
 			if (processRank == countOfProcesses - 1) 
 			{
 				endIterator = countOfShaftLenghtsPieces;
@@ -100,16 +100,14 @@ int main(int argc, char **argv)
 					}
 					else 
 					{
-						if ((processRank == 1) && 
-							(processRank != countOfProcesses - 1)) 
+						if (processRank == 1)
 						{
 							MPI_Send(&u0[endIterator-1], 1, MPI_DOUBLE, processRank + 1, 0, MPI_COMM_WORLD);
 							MPI_Recv(&u0[endIterator], 1, MPI_DOUBLE, processRank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 						}
 						else
 						{ 
-							if ((processRank == countOfProcesses - 1) && 
-								(processRank != 1)) 
+							if (processRank == countOfProcesses - 1)
 							{
 							MPI_Recv(&u0[beginIterator-1], 1, MPI_DOUBLE, processRank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 							MPI_Send(&u0[beginIterator], 1, MPI_DOUBLE, processRank - 1, 0, MPI_COMM_WORLD);
